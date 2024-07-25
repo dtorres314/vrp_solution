@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"math"
 	"os"
 	"sort"
@@ -80,4 +81,20 @@ func solveVRP(loads []Load) map[int][]string {
 		drivers[driverID] = currentDriverLoads
 	}
 	return drivers
+}
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: go run main.go {path_to_problem}")
+		return
+	}
+	filePath := os.Args[1]
+	loads, err := parseInput(filePath)
+	if err != nil {
+		fmt.Printf("Error reading input file: %v\n", err)
+		return
+	}
+	solution := solveVRP(loads)
+	for _, driverLoads := range solution {
+		fmt.Printf("[%s]\n", strings.Join(driverLoads, ","))
+	}
 }
