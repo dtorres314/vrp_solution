@@ -20,17 +20,18 @@ The VRP Solution project provides a tool for solving Vehicle Routing Problems (V
 
 If you don't have the precompiled executable, you can compile the program using Go:
 
-** Build the Executable:**
+#### Build the Executable:
 
-```sh
+```
 go build -o vrp_solution.exe main.go
+```
+#### Run the Executable:
 
- **Run the Executable:**
-
-```sh
+```
 .\vrp_solution.exe .\problem\problem1.txt
+```
+#### Run the Go Program Directly:
 
-** Run the Go Program Directly:**
-
-```sh
+```
 go run main.go ./problem/problem1.txt
+```
