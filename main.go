@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -64,7 +65,12 @@ func solveVRP(loads []Load) (map[int][]string, float64) {
 	drivers := make(map[int][]string)
 	driverID := 0
 	sort.SliceStable(loads, func(i, j int) bool {
-		return depot.distanceTo(loads[i].pickup)+loads[i].pickup.distanceTo(loads[i].dropoff) < depot.distanceTo(loads[j].pickup)+loads[j].pickup.distanceTo(loads[j].dropoff)
+		distanceI := depot.distanceTo(loads[i].pickup) + loads[i].pickup.distanceTo(loads[i].dropoff)
+		distanceJ := depot.distanceTo(loads[j].pickup) + loads[j].pickup.distanceTo(loads[j].dropoff)
+		if distanceI == distanceJ {
+			return loads[i].id < loads[j].id
+		}
+		return distanceI < distanceJ
 	})
 	currentDriverTime := 0.0
 	totalDrivenMinutes := 0.0
@@ -92,21 +98,92 @@ func solveVRP(loads []Load) (map[int][]string, float64) {
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Usage: go run main.go {path_to_problem}")
+		fmt.Println("Usage: go run main.go {path_to_problem_or_directory}")
 		return
 	}
-	filePath := os.Args[1]
-	start := time.Now()
-	loads, err := parseInput(filePath)
+
+	inputPath := os.Args[1]
+
+	fileInfo, err := os.Stat(inputPath)
 	if err != nil {
-		fmt.Printf("Error reading input file: %v\n", err)
+		fmt.Printf("Error checking input path: %v\n", err)
 		return
 	}
-	solution, totalCost := solveVRP(loads)
-	for _, driverLoads := range solution {
-		fmt.Printf("[%s]\n", strings.Join(driverLoads, ","))
+
+	if fileInfo.IsDir() {
+		// Handle directory case
+		files, err := os.ReadDir(inputPath)
+		if err != nil {
+			fmt.Printf("Error reading directory: %v\n", err)
+			return
+		}
+
+		var costs []float64
+		var sumRunTime float64
+
+		for _, entry := range files {
+			if entry.IsDir() {
+				continue
+			}
+			fmt.Println(entry.Name())
+			fmt.Println("\trunning...")
+			filePath := filepath.Join(inputPath, entry.Name())
+
+			start := time.Now()
+			loads, err := parseInput(filePath)
+			if err != nil {
+				fmt.Printf("Error reading input file: %v\n", err)
+				continue
+			}
+			solution, totalCost := solveVRP(loads)
+			elapsed := time.Since(start)
+
+			fmt.Printf("\trun time: %s\n", elapsed)
+			if elapsed.Seconds() > 30 {
+				fmt.Println("\t\tRun time constraint of 30s exceeded! Please reduce program runtime!")
+			}
+			sumRunTime += elapsed.Seconds()
+
+			fmt.Println("\tevaluating solution...")
+			for _, driverLoads := range solution {
+				fmt.Printf("[%s]\n", strings.Join(driverLoads, ","))
+			}
+			fmt.Printf("Total cost: %.2f\n", totalCost)
+
+			costs = append(costs, totalCost)
+		}
+
+		if len(costs) > 0 {
+			var meanCost float64
+			for _, cost := range costs {
+				meanCost += cost
+			}
+			meanCost /= float64(len(costs))
+			fmt.Printf("mean cost: %.2f\n", meanCost)
+			fmt.Printf("mean run time: %.2f ms\n", (sumRunTime*1000)/float64(len(costs)))
+		}
+	} else {
+		// Handle file case
+		fmt.Println(inputPath)
+		fmt.Println("\trunning...")
+		start := time.Now()
+		loads, err := parseInput(inputPath)
+		if err != nil {
+			fmt.Printf("Error reading input file: %v\n", err)
+			return
+		}
+		solution, totalCost := solveVRP(loads)
+		elapsed := time.Since(start)
+
+		fmt.Printf("\trun time: %s\n", elapsed)
+		if elapsed.Seconds() > 30 {
+			fmt.Println("\t\tRun time constraint of 30s exceeded! Please reduce program runtime!")
+		}
+
+		fmt.Println("\tevaluating solution...")
+		for _, driverLoads := range solution {
+			fmt.Printf("[%s]\n", strings.Join(driverLoads, ","))
+		}
+		fmt.Printf("Total cost: %.2f\n", totalCost)
 	}
-	elapsed := time.Since(start)
-	fmt.Printf("Total cost: %.2f\n", totalCost)
-	fmt.Printf("Runtime: %s\n", elapsed)
 }
