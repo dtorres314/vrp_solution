@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Point struct {
@@ -31,6 +32,7 @@ func parsePoint(coord string) Point {
 	y, _ := strconv.ParseFloat(coords[1], 64)
 	return Point{x, y}
 }
+
 func parseInput(filePath string) ([]Load, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -55,15 +57,17 @@ func parseInput(filePath string) ([]Load, error) {
 	}
 	return loads, nil
 }
-func solveVRP(loads []Load) map[int][]string {
+
+func solveVRP(loads []Load) (map[int][]string, float64) {
 	depot := Point{0, 0}
 	maxDriveTime := 720.0 // 12 hours in minutes
 	drivers := make(map[int][]string)
 	driverID := 0
-	sort.Slice(loads, func(i, j int) bool {
+	sort.SliceStable(loads, func(i, j int) bool {
 		return depot.distanceTo(loads[i].pickup)+loads[i].pickup.distanceTo(loads[i].dropoff) < depot.distanceTo(loads[j].pickup)+loads[j].pickup.distanceTo(loads[j].dropoff)
 	})
 	currentDriverTime := 0.0
+	totalDrivenMinutes := 0.0
 	var currentDriverLoads []string
 	for _, load := range loads {
 		tripTime := depot.distanceTo(load.pickup) + load.pickup.distanceTo(load.dropoff) + load.dropoff.distanceTo(depot)
@@ -72,6 +76,7 @@ func solveVRP(loads []Load) map[int][]string {
 			currentDriverTime += tripTime
 		} else {
 			drivers[driverID] = currentDriverLoads
+			totalDrivenMinutes += currentDriverTime
 			driverID++
 			currentDriverLoads = []string{load.id}
 			currentDriverTime = tripTime
@@ -79,22 +84,29 @@ func solveVRP(loads []Load) map[int][]string {
 	}
 	if len(currentDriverLoads) > 0 {
 		drivers[driverID] = currentDriverLoads
+		totalDrivenMinutes += currentDriverTime
 	}
-	return drivers
+	totalCost := 500*float64(len(drivers)) + totalDrivenMinutes
+	return drivers, totalCost
 }
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Println("Usage: go run main.go {path_to_problem}")
 		return
 	}
 	filePath := os.Args[1]
+	start := time.Now()
 	loads, err := parseInput(filePath)
 	if err != nil {
 		fmt.Printf("Error reading input file: %v\n", err)
 		return
 	}
-	solution := solveVRP(loads)
+	solution, totalCost := solveVRP(loads)
 	for _, driverLoads := range solution {
 		fmt.Printf("[%s]\n", strings.Join(driverLoads, ","))
 	}
+	elapsed := time.Since(start)
+	fmt.Printf("Total cost: %.2f\n", totalCost)
+	fmt.Printf("Runtime: %s\n", elapsed)
 }
